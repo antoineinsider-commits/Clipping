@@ -9,3 +9,4 @@ outputs/
 *.mkv
 *.webm
 .DS_Store
+*.zip
