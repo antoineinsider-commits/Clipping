@@ -22,15 +22,23 @@ for _d in (DOWNLOADS_DIR, WORK_DIR, OUTPUT_DIR):
 # Model size: tiny / base / small / medium / large-v3
 # large-v3 is most accurate but slower. medium is a good speed/accuracy balance
 # on a laptop CPU. Use large-v3 if you have a decent GPU.
-WHISPER_MODEL_SIZE = "medium"
+WHISPER_MODEL_SIZE = os.environ.get("CLIPPER_WHISPER_MODEL", "medium")
 WHISPER_DEVICE = "auto"       # "cuda" if you have an NVIDIA GPU, else "cpu"
 WHISPER_COMPUTE_TYPE = "auto"  # "float16" on GPU, "int8" on CPU for speed
 
 # ---------------------------------------------------------------------------
-# Highlight detection (local LLM via Ollama - completely free, no API keys)
+# Highlight detection (local LLM - completely free, no API keys)
 # ---------------------------------------------------------------------------
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "llama3.1"      # run `ollama pull llama3.1` first
+# Works with anything exposing an OpenAI-compatible /v1/chat/completions
+# endpoint. Locally that's llama.cpp's llama-server (default below). In
+# GitHub Actions (see .github/workflows/clip.yml) it's Ollama instead,
+# pointed here via the CLIPPER_LLM_URL env var - Ollama runs natively on
+# Linux runners so there's no old-Windows-compatibility question there.
+#   Local:   llama-server.exe -m your-model.gguf -c 8192 --port 8080
+LLM_SERVER_URL = os.environ.get(
+    "CLIPPER_LLM_URL", "http://localhost:8080/v1/chat/completions"
+)
+LLM_MODEL_NAME = os.environ.get("CLIPPER_LLM_MODEL", "local-model")
 MAX_CLIP_SECONDS = 90          # don't let a single clip run longer than this
 MIN_CLIP_SECONDS = 12          # discard anything shorter than this
 MAX_CLIPS_PER_VIDEO = 8        # cap how many highlights we cut per source video

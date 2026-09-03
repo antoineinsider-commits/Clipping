@@ -1,0 +1,78 @@
+name: Run AI Clipper
+
+# Trigger this from the Actions tab: click "Run workflow", paste a video
+# URL, and download your finished clips from the run's Artifacts section
+# when it's done. Runs entirely on GitHub's free Linux runners - nothing
+# to install on your own machine.
+on:
+  workflow_dispatch:
+    inputs:
+      video_source:
+        description: "Video URL (YouTube, Twitch VOD, etc.)"
+        required: true
+        type: string
+      no_captions:
+        description: "Skip burning in captions"
+        required: false
+        type: boolean
+        default: false
+      no_vertical:
+        description: "Skip 9:16 vertical reframe"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  clip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama and pull a small, fast model
+        run: |
+          ollama serve &
+          # Give the server a moment to come up before pulling.
+          for i in $(seq 1 30); do
+            curl -s http://localhost:11434/api/tags > /dev/null && break
+            sleep 1
+          done
+          ollama pull llama3.2:3b
+
+      - name: Run the clipper
+        env:
+          # Ollama's OpenAI-compatible endpoint - see clipper/config.py
+          CLIPPER_LLM_URL: "http://localhost:11434/v1/chat/completions"
+          CLIPPER_LLM_MODEL: "llama3.2:3b"
+          # "small" keeps this within a reasonable runtime on a free,
+          # CPU-only, 2-core runner. Bump to "medium" if you don't mind
+          # slower runs and have long free-minute headroom.
+          CLIPPER_WHISPER_MODEL: "small"
+        run: |
+          ARGS=""
+          if [ "${{ inputs.no_captions }}" = "true" ]; then ARGS="$ARGS --no-captions"; fi
+          if [ "${{ inputs.no_vertical }}" = "true" ]; then ARGS="$ARGS --no-vertical"; fi
+          python -m clipper.main "${{ inputs.video_source }}" $ARGS
+
+      - name: Upload clips
+        uses: actions/upload-artifact@v4
+        with:
+          name: clips
+          path: outputs/*.mp4
+          retention-days: 7

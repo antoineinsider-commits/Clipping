@@ -1,8 +1,8 @@
 """
 Highlight detection: the "expert clipper" brain. Feeds the timestamped
-transcript to a local LLM (via Ollama - completely free, runs on your
-own machine) and asks it to pick the segments most worth clipping,
-scored by how likely they are to hook a viewer.
+transcript to a local LLM (served by llama.cpp's llama-server - completely
+free, runs on your own machine, no API keys) and asks it to pick the
+segments most worth clipping, scored by how likely they are to hook a viewer.
 """
 
 import json
@@ -44,14 +44,23 @@ class Highlight:
     reason: str
 
 
-def _call_ollama(prompt: str) -> str:
+def _call_llm(prompt: str) -> str:
+    """Calls llama.cpp's llama-server, which exposes an OpenAI-compatible
+    /v1/chat/completions endpoint. Make sure the server is running first:
+    llama-server.exe -m your-model.gguf -c 8192 --port 8080
+    """
     resp = requests.post(
-        config.OLLAMA_URL,
-        json={"model": config.OLLAMA_MODEL, "prompt": prompt, "stream": False},
+        config.LLM_SERVER_URL,
+        json={
+            "model": config.LLM_MODEL_NAME,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.4,
+            "stream": False,
+        },
         timeout=600,
     )
     resp.raise_for_status()
-    return resp.json()["response"]
+    return resp.json()["choices"][0]["message"]["content"]
 
 
 def _extract_json_array(text: str) -> list:
@@ -73,7 +82,7 @@ def detect_highlights(segments: List[Segment]) -> List[Highlight]:
         transcript=transcript,
     )
 
-    raw = _call_ollama(prompt)
+    raw = _call_llm(prompt)
     items = _extract_json_array(raw)
 
     highlights = []

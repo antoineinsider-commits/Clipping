@@ -20,7 +20,7 @@ URL or file
 [2] Transcribe    faster-whisper (local, free) — word-level timestamps
     │
     ▼
-[3] Detect        local LLM (Ollama) scores and picks the best moments
+[3] Detect        local LLM (llama.cpp server) scores and picks the best moments
     │
     ▼
 [4] Cut           ffmpeg, frame-accurate, near-lossless quality (CRF 16)
@@ -42,15 +42,38 @@ outputs/*.mp4   ← ready to upload
    - macOS: `brew install ffmpeg`
    - Ubuntu/Debian: `sudo apt install ffmpeg`
    - Windows: [download here](https://www.gyan.dev/ffmpeg/builds/) and add to PATH
-3. **Ollama** (for free local highlight detection)
-   ```bash
-   # install from https://ollama.com, then:
-   ollama pull llama3.1
-   ```
+3. **llama.cpp** (for free local highlight detection — works on older
+   Windows versions too, since it's just a console binary)
+   - Download a release build from https://github.com/ggml-org/llama.cpp/releases
+     (grab the Windows zip matching your CPU, e.g. `win-avx2-x64`)
+   - Download a GGUF model, e.g. `Llama-3.2-3B-Instruct-Q4_K_M.gguf` from
+     Hugging Face (search "bartowski Llama-3.2-3B-Instruct GGUF")
+   - Start the server before running the pipeline:
+     ```bash
+     llama-server.exe -m Llama-3.2-3B-Instruct-Q4_K_M.gguf -c 8192 --port 8080
+     ```
+     Leave this running in its own terminal window while you use the clipper.
 4. A GPU is optional but speeds up transcription a lot. CPU works fine
    with the `medium` Whisper model.
 
-## Setup
+## Run it on GitHub instead (no local install)
+
+Don't want to install ffmpeg/llama.cpp on your own machine at all? Push
+this repo to GitHub (must be a **public** repo for free unlimited Actions
+minutes) and use the included workflow:
+
+1. Go to your repo on GitHub → the **Actions** tab
+2. Click **Run AI Clipper** in the left sidebar → **Run workflow**
+3. Paste a video URL, optionally check "skip captions" / "skip vertical"
+4. Wait for the run to finish (transcription + LLM detection take the
+   longest — expect roughly 10-30 min depending on video length)
+5. Open the finished run → scroll to **Artifacts** → download `clips.zip`
+
+This runs entirely on GitHub's free Linux runners (`.github/workflows/clip.yml`)
+using Ollama instead of llama.cpp, since Ollama runs natively on Linux with
+zero compatibility issues there.
+
+## Setup (running locally)
 
 ```bash
 git clone <this-repo-url>
