@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+venv/
+.venv/
+downloads/
+work/
+outputs/
+*.mp4
+*.mkv
+*.webm
+.DS_Store
